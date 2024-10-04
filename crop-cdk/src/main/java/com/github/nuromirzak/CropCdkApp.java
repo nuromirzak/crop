@@ -1,10 +1,7 @@
-package com.myorg;
+package com.github.nuromirzak;
 
 import software.amazon.awscdk.App;
-import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
-
-import java.util.Arrays;
 
 public class CropCdkApp {
     public static void main(final String[] args) {

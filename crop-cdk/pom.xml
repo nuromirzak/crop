@@ -3,9 +3,10 @@
          xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.myorg</groupId>
+    <groupId>com.github.omirzak</groupId>
     <artifactId>crop-cdk</artifactId>
     <version>0.1</version>
+    <packaging>jar</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -30,7 +31,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>com.myorg.CropCdkApp</mainClass>
+                    <mainClass>com.github.nuromirzak.CropCdkApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>
