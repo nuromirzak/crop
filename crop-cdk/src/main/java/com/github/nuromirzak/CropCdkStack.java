@@ -6,11 +6,7 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.apigateway.EndpointType;
-import software.amazon.awscdk.services.apigateway.LambdaIntegration;
-import software.amazon.awscdk.services.apigateway.RestApi;
-import software.amazon.awscdk.services.apigateway.RestApiProps;
-import software.amazon.awscdk.services.apigateway.StageOptions;
+import software.amazon.awscdk.services.apigateway.*;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.lambda.Code;
@@ -33,7 +29,7 @@ public class CropCdkStack extends Stack {
         super(scope, id, props);
 
         Bucket bucket = new Bucket(this, "MyFirstBucket", BucketProps.builder()
-                .versioned(true)
+                .versioned(false)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build());
 
@@ -41,7 +37,7 @@ public class CropCdkStack extends Stack {
                 .runtime(Runtime.JAVA_21)
                 .handler("com.github.omirzak.CropLambda::handleRequest")
                 .code(Code.fromAsset("../crop-lambda/target/crop-lambda.jar"))
-                .timeout(Duration.seconds(30))
+                .timeout(Duration.seconds(29))
                 .memorySize(1024)
                 .environment(Map.of(
                         "BUCKET_NAME", bucket.getBucketName()
@@ -63,6 +59,11 @@ public class CropCdkStack extends Stack {
                         .stageName("prod")
                         .build())
                 .endpointTypes(List.of(EndpointType.REGIONAL))
+                .defaultCorsPreflightOptions(CorsOptions.builder()
+                        .allowOrigins(List.of("*"))
+                        .allowMethods(List.of("OPTIONS", "GET", "POST"))
+                        .allowHeaders(List.of("*"))
+                        .build())
                 .build());
 
         LambdaIntegration cropIntegration = new LambdaIntegration(cropFunction);

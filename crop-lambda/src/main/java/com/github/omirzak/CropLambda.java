@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.omirzak.config.DependencyFactory;
 import com.github.omirzak.dto.CropRequest;
@@ -15,8 +16,10 @@ import com.github.omirzak.service.PhotoSizeRepository;
 import com.github.omirzak.service.RekognitionService;
 import com.github.omirzak.util.AspectRatioUtil;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.JSONInput;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -77,8 +80,7 @@ public class CropLambda implements RequestHandler<APIGatewayProxyRequestEvent, A
                         .withStatusCode(404);
             }
 
-            @NotNull List<FaceCoordinate> faceCoordinate = rekognitionService.detectFaces(imageUrl);
-            logger.info("faceCoordinates = " + faceCoordinate);
+            List<FaceCoordinate> faceCoordinate = rekognitionService.detectFaces(imageUrl);
             PhotoSizeDTO photoSizeDTO = photoSizeDTOOptional.get();
 
             BufferedImage originalImage = imageService.getImageFromUrl(imageUrl);
@@ -86,14 +88,27 @@ public class CropLambda implements RequestHandler<APIGatewayProxyRequestEvent, A
 
             String presignedUrl = uploadAndGetPresignedUrl(resultImage, photoSizeDTO);
 
+            return createResponse(new CropResponse(presignedUrl), 200);
+        } catch (Exception e) {
+            logger.severe("Error processing request: " + e.getMessage());
+            return createResponse(Map.of("message", e.getMessage()), 500);
+        }
+    }
+
+    private APIGatewayProxyResponseEvent createResponse(Object body, int statusCode) {
+        try {
+            String bodyString = objectMapper.writeValueAsString(body);
             return new APIGatewayProxyResponseEvent()
-                    .withBody(objectMapper.writeValueAsString(new CropResponse(presignedUrl)))
-                    .withStatusCode(200)
-                    .withHeaders(Map.of("Content-Type", "application/json"));
-        } catch (IOException e) {
-            return new APIGatewayProxyResponseEvent()
-                    .withBody("Error processing request: " + e.getMessage())
-                    .withStatusCode(500);
+                    .withBody(bodyString)
+                    .withStatusCode(statusCode)
+                    .withHeaders(Map.of(
+                            "Content-Type", "application/json",
+                            "Access-Control-Allow-Origin", "*",
+                            "Access-Control-Allow-Headers", "*",
+                            "Access-Control-Allow-Methods", "OPTIONS,POST,GET"
+                    ));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -101,9 +116,17 @@ public class CropLambda implements RequestHandler<APIGatewayProxyRequestEvent, A
         byte[] imageBytes = convertImageToBytes(image, photoSizeDTO.format());
         String key = "cropped/%s_%d.%s".formatted(photoSizeDTO.constructFileName(), System.currentTimeMillis(), photoSizeDTO.format());
 
+        String contentType = switch (photoSizeDTO.format().toLowerCase()) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "webp" -> "image/webp";
+            default -> "application/octet-stream";
+        };
+
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
+                .contentType(contentType)
                 .build();
 
         s3Client.putObject(putObjectRequest, RequestBody.fromBytes(imageBytes));

@@ -53,7 +53,6 @@ public class ImageServiceImpl implements ImageService {
         assertValidFaceCoordinates(originalImage, faceCoordinates);
 
         Point faceCenter = calculateCenterOfFaces(faceCoordinates);
-        System.out.println("faceCenter = " + faceCenter);
 
         int minHalfWidth = Math.min(faceCenter.x(), imageWidth - faceCenter.x());
         int minHalfHeight = Math.min(faceCenter.y(), imageHeight - faceCenter.y());
